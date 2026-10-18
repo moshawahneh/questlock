@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# Xcode — the project is generated from ios/project.yml (see docs/decisions/002)
+ios/*.xcodeproj/
+ios/Generated/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Secrets and local config — commit only the .example files
+*.xcconfig
+!*.xcconfig.example
+.env
+.env.*
+!.env.example
+*.p8
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
+# Eval photos for verify-checkin (real faces, never committed)
+supabase/functions/verify-checkin/eval/photos/
