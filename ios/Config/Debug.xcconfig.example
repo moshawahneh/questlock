@@ -1,0 +1,11 @@
+// Copy this file to Debug.xcconfig (gitignored) and fill in your values:
+//   cp ios/Config/Debug.xcconfig.example ios/Config/Debug.xcconfig
+
+// Apple Developer team ID (developer.apple.com → Membership details). Leave empty for unsigned CI builds.
+DEVELOPMENT_TEAM =
+
+// Supabase project — used from Phase 2. The anon key is safe in the app only because
+// every table has Row Level Security on (see CLAUDE.md, "Secrets and safety").
+// xcconfig treats "//" as a comment, so URLs are written with "/$()/" to break it up.
+SUPABASE_URL = http:/$()/127.0.0.1:54321
+SUPABASE_ANON_KEY =
