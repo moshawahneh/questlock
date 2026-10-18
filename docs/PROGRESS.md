@@ -2,7 +2,7 @@
 
 ## Phase 0 — Repo, skeleton, and the slow external requests
 
-**Status:** built and checked on the Mac · waiting for Mo's device test, CI run and merge · branch `phase-0-skeleton`
+**Status:** built and checked on the Mac · CI green on PR 1 · waiting for Mo's device test and merge · branch `phase-0-skeleton`
 
 ### What was built
 
@@ -46,18 +46,17 @@
 
 - **Unsigned Simulator builds can't launch** on Apple Silicon (the app must be at least ad-hoc signed). CI only *builds* with `CODE_SIGNING_ALLOWED=NO`; run tests with default signing (command in `CLAUDE.md`).
 - Device build not done yet: the Mac has no Apple Development certificate until Mo signs in to Xcode (step 1 below).
-- CI hasn't run yet: the GitHub repo doesn't exist / isn't pushed.
-- Family Controls (Distribution) request: not submitted yet.
+- Family Controls (Distribution): requested for all 4 bundle IDs on 2026-10-18, waiting for Apple. Check: portal → Identifiers → each App ID → **Capability Requests** → **Status**. Approved = **Assigned**. TestFlight (Phase 7) is blocked until all 4 are assigned.
 
 ### Mo does (Phase 0 checklist)
 
 - [ ] Xcode → Settings → Accounts → **+** → Apple ID → sign in with your developer account.
-- [ ] Developer portal → Identifiers → **App Groups** → register `group.com.mohammadshaw.questlock`.
-- [ ] Developer portal → Identifiers: check the 4 App IDs exist (`com.mohammadshaw.questlock`, `.monitor`, `.shieldconfig`, `.shieldaction`). Xcode may create them on the first device build. Enable **Family Controls (Development)** + **App Groups** (assign the group) on all 4, plus **Push Notifications** + **Sign in with Apple** on the app.
-- [ ] **Submit the Family Controls (Distribution) request for all 4 bundle IDs** (Apple doc linked in PLAN §9). Note the date here: ____
+- [x] Developer portal → Identifiers → **App Groups** → register `group.com.mohammadshaw.questlock`.
+- [x] Developer portal → Identifiers: register the 4 App IDs (`com.mohammadshaw.questlock`, `.monitor`, `.shieldconfig`, `.shieldaction`) with **Family Controls (Development)** + **App Groups** (assign the group) on all 4, plus **Push Notifications** + **Sign in with Apple** on the app.
+- [x] **Family Controls (Distribution) requested for all 4 bundle IDs** (portal → App ID → **Capability Requests** tab) on **2026-10-18**.
 - [ ] Create a free Supabase project. Note the project ref (not the keys) here: ____
 - [ ] Anthropic Console: create an API key with a monthly spend limit. Don't put it anywhere in the repo; it goes into `supabase secrets` in Phase 4.
-- [ ] Create an empty **public** GitHub repo `questlock`, or run `gh auth login` and let Claude Code create it.
+- [x] Public GitHub repo: https://github.com/moshawahneh/questlock (CI green on PR 1).
 
 ### Manual test steps (device)
 
