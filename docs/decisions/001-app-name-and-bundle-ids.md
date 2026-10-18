@@ -11,7 +11,7 @@ The bundle IDs go into Apple's Family Controls (Distribution) entitlement reques
 - Name: **QuestLock**: your apps stay locked until you complete today's "quest" (photograph the target). It also fits future habit types (gym, reading), which `habits.type` already allows for.
 - Bundle IDs: `com.mohammadshaw.questlock`, `com.mohammadshaw.questlock.monitor`, `.shieldconfig`, `.shieldaction` (extensions must be prefixed by the app's ID). Test bundle: `.tests`.
 - App Group: `group.com.mohammadshaw.questlock`.
-- Prefix `com.mohammadshaw` matches the GitHub handle `MohammadShaw`.
+- Prefix `com.mohammadshaw` comes from Mo's name (and his former GitHub handle `MohammadShaw`; the account is now `moshawahneh`). Bundle IDs don't have to match the GitHub account.
 
 ## Alternatives considered
 
