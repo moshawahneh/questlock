@@ -1,0 +1,3 @@
+-- Phase 0: intentionally empty. Proves the migration pipeline works locally and in CI.
+-- Phase 2 adds the tables from docs/PLAN.md section 4.
+-- Rule: every table created in a migration enables Row Level Security in that same migration.
