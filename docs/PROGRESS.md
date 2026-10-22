@@ -1,8 +1,47 @@
 # Progress
 
+## Phase 2 — Supabase foundation: auth, groups, schedules
+
+**Status:** built and tested locally · waiting for Mo's Supabase project, then the two-phone test · branch `phase-2-supabase`
+
+### What was built
+
+- **Database** (`supabase/migrations/…_phase2_schema.sql`): every table from PLAN §4, with RLS (Row Level Security) on for all of them.
+  - Profiles are created automatically on sign-up. Users can only edit their name, time zone and `screen_time_ok`; streaks are written by the server only, enforced with column privileges.
+  - Groups and members can only be changed through RPCs (Remote Procedure Calls): `create_group`, `join_group`, `leave_group`, `rename_group`, `regenerate_invite_code`, `remove_member`. They enforce 20 members per group, 5 groups per person and admin-only actions. When the last admin leaves, the longest-standing member takes over; when the last member leaves, the group is deleted.
+  - `save_schedule` stores a full week as a new version that **starts tomorrow** in the user's time zone. Rest days are stored explicitly, and `schedule_for(habit, date)` returns the rule in force on a date.
+  - Scoring and feed tables (challenges, checkins, daily_results, …) are read-only for clients. Later phases add their write paths.
+- **32 pgTAP tests** (`supabase test db`): non-members can't see groups, members or profiles; nobody can write someone else's schedule or their own streak; a bad invite code fails; admin-only actions; the group limit; leaving; signed-out access.
+- **iOS:** Sign in with Apple → `signInWithIdToken` (with a nonce); onboarding (name → Screen Time + apps → schedule); groups (create, join by code, share, leaderboard by streak, admin rename / new code / remove, leave); Settings (name, weekly schedule editor, blocked apps, which can't be changed while locked, sign out).
+- **Schedules on the phone:** the server's current and pending versions are kept side by side. Each weekday's DeviceActivity is registered with the rule for its *next* window, so a pending edit takes over once today's window has ended. Every lock start gets a repeating local notification ("Apps locked — check in by 10:00").
+- **Monitor safety check:** a weekly callback only locks if today's schedule has a window starting about then, so a stale registration can't lock at the old time.
+- 19 iOS unit tests.
+
+### Deviations from the plan
+
+1. All code written by Claude (build mode). `join_group` was a "Mo writes" item.
+2. A user's **first** schedule also starts tomorrow, the same rule as edits, so the first day is a rest day.
+3. The weekly schedule is on as soon as one is saved. Testing → "Use my schedule on this phone" pauses it (a testing aid; Phase 6 reports escapes).
+4. supabase-swift is pinned to an exact version (2.55.4), because `Package.resolved` lives in the gitignored, generated Xcode project.
+
+### Open issues
+
+- Not yet run against the live Supabase project or on two phones (needs the steps below).
+- Pushing the migration to the live project needs Mo's OK (standing rule).
+
+### Mo does
+
+1. Create the Supabase project ([dashboard](https://supabase.com/dashboard) → New project → `questlock`, region London, free plan). Keep the database password in your password manager.
+2. Run `supabase login` in a terminal.
+3. Supabase dashboard → Authentication → Sign In / Providers → **Apple** → on → Client IDs: `com.mohammadshaw.questlock` → Save.
+4. Tell Claude Code, which then links the project, asks before pushing the migration, puts the URL and anon key in `ios/Config/Debug.xcconfig`, and reinstalls the app.
+5. Two-phone test (once the app is connected): on your phone, sign in → onboarding → **Groups** → **Create a group** → share the code. On a friend's iPhone (cable to this Mac, Developer Mode on; Claude Code installs it): sign in → **Join with a code** → both phones show both people on the leaderboard. Each sets a schedule, and the next day it locks the chosen apps on time.
+
+---
+
 ## Phase 1 — Screen Time lock spike
 
-**Status:** built, 15/15 unit tests pass, core lock flow confirmed on iPhone Sh (2026-10-23) · branch `phase-1-screen-time`
+**Status:** done · core lock flow confirmed on iPhone Sh (2026-10-23) · merged in PR 2 · branch `phase-1-screen-time`
 
 ### Checked on device (iPhone Sh, 2026-10-23, from the phone's lock log)
 
