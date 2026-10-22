@@ -56,7 +56,7 @@ enum LockEngine {
         }
         let weekday = Weekday(of: now, calendar: calendar)
         if SharedStore.weeklyEnabled,
-           let window = ScheduleMath.lockWindow(on: now, schedule: SharedStore.weeklySchedule, calendar: calendar),
+           let window = ScheduleMath.lockWindow(on: now, schedule: scheduleInForce(now: now, calendar: calendar), calendar: calendar),
            window.start <= now, now < window.end {
             windows.append(Window(activity: .weekly(weekday), interval: window))
         }
@@ -65,6 +65,11 @@ enum LockEngine {
             windows.append(Window(activity: .test(weekday), interval: window))
         }
         return windows
+    }
+
+    /// The weekly schedule that applies right now: the pending edit once its start date arrives.
+    static func scheduleInForce(now: Date, calendar: Calendar = .current) -> WeeklySchedule {
+        ScheduleMath.schedule(on: now, current: SharedStore.weeklySchedule, pending: SharedStore.pendingSchedule, calendar: calendar)
     }
 
     static func shouldBeLocked(now: Date, excluding excluded: LockActivity? = nil) -> Bool {
@@ -97,6 +102,16 @@ enum LockEngine {
             guard Weekday(of: now, calendar: calendar) == day else {
                 SharedStore.log("Start \(name.rawValue) fired on \(Weekday(of: now, calendar: calendar).shortName), ignored", at: now)
                 return
+            }
+            // A weekly activity registered before a schedule edit may be out of date: only lock if
+            // today's schedule really has a window starting about now (2 minutes' leeway for early callbacks).
+            if case .weekly = activity {
+                guard SharedStore.weeklyEnabled,
+                      let window = ScheduleMath.lockWindow(on: now, schedule: scheduleInForce(now: now, calendar: calendar), calendar: calendar),
+                      now >= window.start.addingTimeInterval(-120), now < window.end else {
+                    SharedStore.log("Start \(name.rawValue): not in today's schedule, ignored", at: now)
+                    return
+                }
             }
         case .debug:
             break

@@ -35,6 +35,21 @@ enum Weekday: Int, Codable, CaseIterable, Sendable {
     var shortName: String {
         ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][rawValue - 1]
     }
+
+    var name: String {
+        ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][rawValue - 1]
+    }
+
+    /// The database uses ISO weekdays: 1 = Monday … 7 = Sunday.
+    init?(iso: Int) {
+        guard (1...7).contains(iso) else { return nil }
+        self.init(rawValue: iso % 7 + 1)
+    }
+
+    var iso: Int { rawValue == 1 ? 7 : rawValue - 1 }
+
+    /// Monday first, the order the schedule editor shows.
+    static let mondayFirst: [Weekday] = [.monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday]
 }
 
 /// One day's rule: the check-in deadline, and how long before it the apps lock.
@@ -53,6 +68,13 @@ struct WeeklySchedule: Codable, Hashable, Sendable {
         let weekend = day == .saturday || day == .sunday
         return (day, DaySchedule(deadline: TimeOfDay(hour: weekend ? 12 : 10, minute: 0), leadMinutes: 120))
     }))
+}
+
+/// A saved schedule that hasn't started yet. Edits take effect from tomorrow, so the phone keeps
+/// using the current schedule until `effectiveFrom` (a local date, "yyyy-MM-dd").
+struct PendingSchedule: Codable, Hashable, Sendable {
+    var effectiveFrom: String
+    var schedule: WeeklySchedule
 }
 
 /// A one-off lock started from the Today tab's testing section.
