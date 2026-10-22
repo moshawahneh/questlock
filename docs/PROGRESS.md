@@ -2,7 +2,19 @@
 
 ## Phase 1 — Screen Time lock spike
 
-**Status:** built, 15/15 unit tests pass, installed on iPhone Sh · waiting for Mo's device test · branch `phase-1-screen-time`
+**Status:** built, 15/15 unit tests pass, core lock flow confirmed on iPhone Sh (2026-10-23) · branch `phase-1-screen-time`
+
+### Checked on device (iPhone Sh, 2026-10-23, from the phone's lock log)
+
+| Time | Event |
+|---|---|
+| 00:11:02 | Scheduled test lock fired in the Monitor extension. No apps chosen yet, so no shield (correct) |
+| 00:13:45 | Instagram chosen during a running lock → reconcile locked it straight away |
+| 00:14:47 | Starting a new test lock stopped the old one; `stopMonitoring` triggers `intervalDidEnd`, which unlocked |
+| 00:16:02 | Monitor applied the shield on schedule (new 00:16–00:31 lock) |
+| 00:16:44 | **Unlock now** cleared the shield |
+
+Mo saw the QuestLock shield on Instagram and the "Tap to check in" notification. Found on device and fixed: the app picker saved and logged once per tick (6× for one pick). It now saves only real changes. **Check in** taps are now logged too.
 
 ### What was built
 
@@ -27,7 +39,8 @@
 
 ### Open issues
 
-- Not yet confirmed on the phone: that weekly `DateComponents(weekday:)` schedules fire only on their weekday. The tomorrow-only test checks this.
+- Not yet confirmed on the phone: that weekly `DateComponents(weekday:)` schedules fire only on their weekday. The tomorrow-only test checks this, and the Monitor's weekday guard means a wrong-day callback can't lock anyway.
+- Not yet seen on the phone: a lock ending on its own at the scheduled time (both test locks so far were ended early by Unlock now or a new test lock).
 - The shield's notification is posted fire-and-forget. If it doesn't show up on the phone, it needs another approach.
 - Overlapping test locks are only handled roughly (debug-only).
 
