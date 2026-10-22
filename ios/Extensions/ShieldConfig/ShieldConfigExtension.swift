@@ -3,7 +3,6 @@ import ManagedSettingsUI
 import UIKit
 
 /// iOS asks this extension what to draw when the user opens a blocked app or website.
-/// Phase 1: read today's target from the App Group ("Locked until you check in — today: find a bench").
 final class ShieldConfigExtension: ShieldConfigurationDataSource {
     override func configuration(shielding application: Application) -> ShieldConfiguration {
         Self.lockedShield
@@ -23,8 +22,12 @@ final class ShieldConfigExtension: ShieldConfigurationDataSource {
 
     private static var lockedShield: ShieldConfiguration {
         ShieldConfiguration(
-            title: .init(text: "QuestLock", color: .label),
-            subtitle: .init(text: "Locked until you check in.", color: .secondaryLabel)
+            backgroundBlurStyle: .systemMaterial,
+            icon: UIImage(systemName: "lock.fill"),
+            title: .init(text: "Locked until you check in", color: .label),
+            subtitle: .init(text: "Today's quest: \(SharedStore.todayTarget)", color: .secondaryLabel),
+            primaryButtonLabel: .init(text: "Check in", color: .white),
+            primaryButtonBackgroundColor: .systemIndigo
         )
     }
 }

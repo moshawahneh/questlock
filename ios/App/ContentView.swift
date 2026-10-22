@@ -28,4 +28,5 @@ struct ComingSoonView: View {
 
 #Preview {
     ContentView()
+        .environment(LockModel())
 }
