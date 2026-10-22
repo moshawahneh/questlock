@@ -2,7 +2,7 @@
 
 ## Phase 0 — Repo, skeleton, and the slow external requests
 
-**Status:** built and checked on the Mac · CI green on PR 1 · waiting for Mo's device test and merge · branch `phase-0-skeleton`
+**Status:** built, CI green on PR 1, device test passed on 2026-10-22 · waiting for Mo's teach-back and merge · branch `phase-0-skeleton`
 
 ### What was built
 
@@ -33,6 +33,12 @@
 - `supabase start` ✅ (OrbStack): API `http://127.0.0.1:54321`, Studio `http://127.0.0.1:54323`, DB on port 54322.
 - `supabase db lint --local --level warning --fail-on error` ✅ ("No schema errors found").
 
+### Checked on device (2026-10-22, iPhone Sh — iPhone 16 Pro Max, iOS 27.0.1)
+
+- Built, installed and launched from the command line (commands in `CLAUDE.md`). The app opens with 4 tabs, and Settings shows **App Group: OK**.
+- `codesign --verify --strict` ✅ for the app and all 3 extensions. Each one's signed entitlements contain `com.apple.developer.family-controls = true` and the App Group.
+- Each has its own development provisioning profile (team `7CC4SQ8T2L`) that lists iPhone Sh.
+
 ### Deviations from the plan
 
 1. **Name: QuestLock** — "Wakeproof" is already used by several App Store apps. ADR 001.
@@ -45,12 +51,12 @@
 ### Open issues
 
 - **Unsigned Simulator builds can't launch** on Apple Silicon (the app must be at least ad-hoc signed). CI only *builds* with `CODE_SIGNING_ALLOWED=NO`; run tests with default signing (command in `CLAUDE.md`).
-- Device build not done yet: the Mac has no Apple Development certificate until Mo signs in to Xcode (step 1 below).
 - Family Controls (Distribution): requested for all 4 bundle IDs on 2026-10-18, waiting for Apple. Check: portal → Identifiers → each App ID → **Capability Requests** → **Status**. Approved = **Assigned**. TestFlight (Phase 7) is blocked until all 4 are assigned.
 
 ### Mo does (Phase 0 checklist)
 
-- [ ] Xcode → Settings → Accounts → **+** → Apple ID → sign in with your developer account.
+- [x] Xcode → Settings → Accounts → **+** → Apple ID → sign in with your developer account.
+- [x] iPhone Sh registered in the developer account (done by the first device build).
 - [x] Developer portal → Identifiers → **App Groups** → register `group.com.mohammadshaw.questlock`.
 - [x] Developer portal → Identifiers: register the 4 App IDs (`com.mohammadshaw.questlock`, `.monitor`, `.shieldconfig`, `.shieldaction`) with **Family Controls (Development)** + **App Groups** (assign the group) on all 4, plus **Push Notifications** + **Sign in with Apple** on the app.
 - [x] **Family Controls (Distribution) requested for all 4 bundle IDs** (portal → App ID → **Capability Requests** tab) on **2026-10-18**.
@@ -61,8 +67,9 @@
 ### Manual test steps (device)
 
 1. Do the first checklist item (sign in to Xcode).
-2. Connect your iPhone by cable, unlock it, tap **Trust This Computer**.
-3. iPhone: Settings → Privacy & Security → **Developer Mode** → On → restart → confirm.
+2. Connect your iPhone with a **data** cable (many cables only charge), plugged **straight into the Mac**. On the Mac, click **Allow** on "Allow accessory to connect?". On the iPhone, unlock it and tap **Trust This Computer**. To check it worked: `xcrun devicectl list devices` should list the phone as `physical`. If you only see **MacBook Pro** in Xcode's Devices window, that's the Mac itself, not the phone.
+3. iPhone: Settings → Privacy & Security → (very bottom) **Developer Mode** → On → restart → **Turn On**. The switch only shows up after the phone has been connected to Xcode.
+   - Steps 4–7 are the Xcode way. The command-line way (build → install → launch) is in `CLAUDE.md`. The first signed build asks for your **Mac login password** so `codesign` can use your signing key; click **Always Allow**.
 4. Mac terminal: `cd ~/Developer/questlock/ios && xcodegen generate && open QuestLock.xcodeproj`
 5. Xcode toolbar: scheme **QuestLock**, destination **your iPhone**.
 6. Click the blue project icon → each of the 4 targets → **Signing & Capabilities**: "Automatically manage signing" is ticked and Team is your team. If one shows a red error, click **Try Again**. That's Xcode registering the App ID and profile.

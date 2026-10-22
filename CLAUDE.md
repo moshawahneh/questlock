@@ -21,6 +21,12 @@ cd ios && xcodegen generate
 xcodebuild build -project ios/QuestLock.xcodeproj -scheme QuestLock -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
 # Unit tests
 xcodebuild test -project ios/QuestLock.xcodeproj -scheme QuestLock -destination 'platform=iOS Simulator,name=<an installed iPhone simulator>'
+# Device build + install + launch (phone connected by data cable, Developer Mode on).
+# -allowProvisioningDeviceRegistration registers a new phone in the developer account on its first build.
+xcrun devicectl list devices    # find the phone's UDID ("physical")
+xcodebuild build -project ios/QuestLock.xcodeproj -scheme QuestLock -destination 'id=<UDID>' -derivedDataPath build/dd -allowProvisioningUpdates -allowProvisioningDeviceRegistration
+xcrun devicectl device install app --device <UDID> build/dd/Build/Products/Debug-iphoneos/QuestLock.app
+xcrun devicectl device process launch --device <UDID> com.mohammadshaw.questlock
 # Supabase (needs OrbStack/Docker running)
 supabase start      # local stack
 supabase db lint    # same as CI
