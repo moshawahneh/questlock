@@ -1,0 +1,148 @@
+# XcodeGen spec — the source of truth for the Xcode project (see docs/decisions/002).
+# After editing this file, or adding/removing source files, run:  cd ios && xcodegen generate
+name: QuestLock
+
+options:
+  bundleIdPrefix: com.mohammadshaw
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+# Gitignored; copy Config/Debug.xcconfig.example to create it. Supplies DEVELOPMENT_TEAM.
+# Release uses the same file until Phase 7 (TestFlight) needs separate settings.
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Debug.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1" # iPhone only
+
+# Every target that touches Screen Time needs Family Controls, and they all
+# share data through the App Group. XcodeGen writes these .entitlements files
+# on every run, so edit them here, never in the generated files.
+targetTemplates:
+  ScreenTimeTarget:
+    platform: iOS
+    entitlements:
+      path: Generated/${target_name}.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups:
+          - group.com.mohammadshaw.questlock
+
+targets:
+  QuestLock:
+    type: application
+    templates: [ScreenTimeTarget]
+    sources:
+      - App
+      - Shared
+    dependencies:
+      # App extensions are embedded into QuestLock.app/PlugIns/ automatically.
+      - target: Monitor
+      - target: ShieldConfig
+      - target: ShieldAction
+    info:
+      path: Generated/QuestLock-Info.plist
+      properties:
+        CFBundleDisplayName: QuestLock
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mohammadshaw.questlock
+
+  # Started by iOS at the start/end of each scheduled lock window; applies and clears shields.
+  Monitor:
+    type: app-extension
+    templates: [ScreenTimeTarget]
+    sources:
+      - Extensions/Monitor
+      - Shared
+    dependencies:
+      - sdk: DeviceActivity.framework
+      - sdk: ManagedSettings.framework
+    info:
+      path: Generated/Monitor-Info.plist
+      properties:
+        CFBundleDisplayName: QuestLock Monitor
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.deviceactivity.monitor-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).MonitorExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mohammadshaw.questlock.monitor
+
+  # Draws the custom "Locked: find a bench" screen over a blocked app.
+  ShieldConfig:
+    type: app-extension
+    templates: [ScreenTimeTarget]
+    sources:
+      - Extensions/ShieldConfig
+      - Shared
+    dependencies:
+      - sdk: ManagedSettings.framework
+      - sdk: ManagedSettingsUI.framework
+    info:
+      path: Generated/ShieldConfig-Info.plist
+      properties:
+        CFBundleDisplayName: QuestLock Shield
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.ManagedSettingsUI.shield-configuration-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShieldConfigExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mohammadshaw.questlock.shieldconfig
+
+  # Handles taps on the shield's buttons.
+  ShieldAction:
+    type: app-extension
+    templates: [ScreenTimeTarget]
+    sources:
+      - Extensions/ShieldAction
+      - Shared
+    dependencies:
+      - sdk: ManagedSettings.framework
+    info:
+      path: Generated/ShieldAction-Info.plist
+      properties:
+        CFBundleDisplayName: QuestLock Shield Action
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.ManagedSettings.shield-action-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShieldActionExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mohammadshaw.questlock.shieldaction
+
+  QuestLockTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: QuestLock
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mohammadshaw.questlock.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  QuestLock:
+    build:
+      targets:
+        QuestLock: all
+        QuestLockTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - QuestLockTests
+    archive:
+      config: Release

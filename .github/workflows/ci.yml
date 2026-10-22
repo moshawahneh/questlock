@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: iOS build (Simulator)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: |
+          cp Config/Debug.xcconfig.example Config/Debug.xcconfig
+          xcodegen generate
+
+      # Unsigned build: CI has no Apple certificates, and a Simulator build doesn't need them.
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project ios/QuestLock.xcodeproj \
+            -scheme QuestLock \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+
+  supabase:
+    name: Supabase db lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.121.0 # keep in step with the local CLI (supabase --version)
+
+      # Lint inspects a running database built from supabase/migrations, so start Postgres first.
+      - name: Start local database
+        run: supabase db start
+
+      - name: Lint
+        run: supabase db lint --local --level warning --fail-on error
