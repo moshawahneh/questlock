@@ -439,7 +439,7 @@ declare
     habit uuid;
     starts date;
     day jsonb;
-    seen smallint[] := '{}';
+    seen smallint[] := array[]::smallint[];
     wd smallint;
 begin
     if me is null then
