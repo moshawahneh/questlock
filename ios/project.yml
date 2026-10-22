@@ -14,6 +14,13 @@ configFiles:
   Debug: Config/Debug.xcconfig
   Release: Config/Debug.xcconfig
 
+# Swift packages. supabase-swift is pre-approved in docs/PLAN.md §5. Pinned for reproducible builds
+# (the resolved file lives inside the generated, gitignored .xcodeproj).
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    exactVersion: 2.55.4
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -38,11 +45,23 @@ targetTemplates:
 targets:
   QuestLock:
     type: application
-    templates: [ScreenTimeTarget]
+    platform: iOS
+    # Its own entitlements (the ScreenTimeTarget set plus Sign in with Apple), not the template,
+    # because XcodeGen appends template arrays rather than replacing them.
     sources:
       - App
       - Shared
+    entitlements:
+      path: Generated/QuestLock.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups:
+          - group.com.mohammadshaw.questlock
+        com.apple.developer.applesignin:
+          - Default
     dependencies:
+      - package: Supabase
+        product: Supabase
       # App extensions are embedded into QuestLock.app/PlugIns/ automatically.
       - target: Monitor
       - target: ShieldConfig
@@ -51,6 +70,9 @@ targets:
       path: Generated/QuestLock-Info.plist
       properties:
         CFBundleDisplayName: QuestLock
+        # Filled in from Config/Debug.xcconfig; read by App/Services/Backend.swift.
+        SupabaseURL: $(SUPABASE_URL)
+        SupabaseAnonKey: $(SUPABASE_ANON_KEY)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

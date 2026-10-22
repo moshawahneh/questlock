@@ -27,6 +27,10 @@ struct ComingSoonView: View {
 }
 
 #Preview {
+    let locks = LockModel()
     ContentView()
-        .environment(LockModel())
+        .environment(locks)
+        .environment(ScheduleModel(locks: locks))
+        .environment(SessionModel())
+        .environment(GroupsModel())
 }
