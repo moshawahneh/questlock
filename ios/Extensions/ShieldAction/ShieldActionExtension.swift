@@ -19,6 +19,7 @@ final class ShieldActionExtension: ShieldActionDelegate {
     private static func respond(to action: ShieldAction) -> ShieldActionResponse {
         if action == .primaryButtonPressed {
             postCheckInNotification()
+            SharedStore.log("Shield: Check in tapped, notification sent")
         }
         // Close the blocked app; the user continues from the notification.
         return .close
