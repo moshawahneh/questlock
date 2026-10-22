@@ -52,6 +52,8 @@ final class LockModel {
     // MARK: - Apps to block
 
     func updateSelection(_ newValue: FamilyActivitySelection) {
+        // The picker calls this on every tick while it's open; only save real changes.
+        guard newValue != SharedStore.selection else { return }
         SharedStore.selection = newValue
         SharedStore.log("Blocked apps changed: \(summary(of: newValue))")
         reconcile()
