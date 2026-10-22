@@ -2,7 +2,7 @@
 
 ## Phase 0 — Repo, skeleton, and the slow external requests
 
-**Status:** built, CI green on PR 1, device test passed on 2026-10-22 · waiting for Mo's teach-back and merge · branch `phase-0-skeleton`
+**Status:** built, CI green on PR 1, device test passed on 2026-10-22 · merged · branch `phase-0-skeleton`
 
 ### What was built
 
@@ -79,8 +79,6 @@
 10. `supabase start` (OrbStack running) → `supabase status` lists the local API URL, DB URL and Studio URL.
 11. After pushing: GitHub → Actions → both CI jobs green.
 
-### Teach-back (answer before Phase 1)
+### Teach-back
 
-1. What's an app extension, and why does this app need three?
-2. What is an App Group for?
-3. Why XcodeGen instead of clicking in Xcode?
+Skipped: Mo switched the project to build mode on 2026-10-22 (see `CLAUDE.md`).

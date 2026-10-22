@@ -33,24 +33,22 @@ supabase db lint    # same as CI
 supabase test db    # pgTAP tests (from Phase 2)
 ```
 
-## Standing rules (copied from `docs/PLAN.md` section 5)
+## Standing rules
+
+> **Build mode (Mo's decision, 2026-10-22).** Mo wants the app built for him, not a guided course. This replaces the learning-mode rules in `docs/PLAN.md` §5: no teach-back questions, no "Mo writes" items, and no plan-mode approval per phase. The secrets, safety, iOS and testing rules below still apply.
 
 **Workflow**
-- One phase at a time. Start each phase in plan mode and wait for Mo's approval. Stop at the end of the phase; don't start the next one.
-- Branch per phase (`phase-1-screen-time`), small commits with Conventional Commit messages (`feat:`, `fix:`, `test:`…). Mo merges.
+- Work through the phases in order and continue to the next one without waiting for approval. Use `docs/PLAN.md` for each phase's scope and "Done when".
+- Stop only for things Mo has to do himself: device tests (Screen Time, camera and push only work on a real iPhone), creating accounts and keys, App Store and TestFlight steps, and the "Ask before" items under Secrets and safety.
+- Branch per phase (`phase-1-screen-time`), small commits with Conventional Commit messages (`feat:`, `fix:`, `test:`…), one PR per phase. **Claude merges the PR** once CI is green and the phase's device test (if any) has passed.
 - At the end of every phase, update `docs/PROGRESS.md`: what was built, deviations from the plan, open issues, exact manual test steps.
-- Record non-obvious choices as short ADRs (Architecture Decision Records) in `docs/decisions/` — context, decision, alternatives considered.
-- Before using an Apple, Supabase or Claude API you're not certain of, check the current official docs. Screen Time APIs change between iOS versions; don't guess signatures.
+- Record non-obvious choices as short ADRs (Architecture Decision Records) in `docs/decisions/`: context, decision, alternatives considered.
+- Before using an Apple, Supabase or Claude API you're not certain of, check the current official docs or the SDK's `.swiftinterface`. Screen Time APIs change between iOS versions; don't guess signatures.
 - Don't add dependencies without asking. Pre-approved: `supabase-swift` (iOS); `@supabase/supabase-js`, `jose`, Deno std (Edge Functions).
 
-**Explaining to Mo**
-- Mo is a 2nd-year CS student: solid Java, some Python, SQL, some SwiftUI from a macOS side project. New to iOS extensions, Screen Time APIs, Supabase, Deno.
-- After each meaningful step, explain what you did and why in plain English. Use Java analogies where they help (Swift `protocol` ≈ Java `interface`; RLS ≈ a `WHERE` clause the database adds to every query for you).
-- Expand every acronym the first time it appears in a phase.
-- Use ASCII diagrams for flows and data movement.
-- Flag any code Mo would struggle to defend in an interview, and offer to walk through it.
-- Never use the word "genuinely".
-- Each phase has **"Mo writes"** items: write the tests and a stub, leave the implementation to Mo, then review his code. Don't fill them in unless he asks.
+**Talking to Mo**
+- Mo is a CS student who wants results, not lessons. Keep updates short and plain: what changed, what he has to do, and exact numbered steps for anything on his phone or in a web console.
+- Expand acronyms the first time they appear. Never use the word "genuinely".
 
 **Secrets and safety**
 - The repo is public. Never commit secrets. Claude API key, APNs key and Supabase service-role key live only in Supabase secrets (`supabase secrets set`). Supabase URL + anon key go in a gitignored `.xcconfig` with a committed `.example`.
@@ -59,8 +57,8 @@ supabase test db    # pgTAP tests (from Phase 2)
 
 **iOS specifics**
 - Never hand-edit `.pbxproj`. Edit `ios/project.yml` and run `xcodegen generate`. Entitlements are defined in `project.yml` too (XcodeGen regenerates `.entitlements` files and overwrites manual edits).
-- Screen Time, multi-camera and push don't work properly in the Simulator. When a phase needs a device test, give Mo exact numbered steps.
-- Swift 6 language mode. When you fix a concurrency error (`@MainActor`, `Sendable`), explain the fix rather than silencing it.
+- Screen Time, multi-camera and push don't work properly in the Simulator. Install on Mo's iPhone from the command line (Commands above) and give him exact numbered steps for what to check.
+- Swift 6 language mode. Fix concurrency errors (`@MainActor`, `Sendable`) properly rather than silencing them.
 
 **Testing**
 - Pure logic (schedule maths, decision rule, hashing) gets unit tests.

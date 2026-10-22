@@ -2,6 +2,8 @@
 
 > **Name decided: QuestLock.** Bundle IDs `com.mohammadshaw.questlock`, `.monitor`, `.shieldconfig`, `.shieldaction`; App Group `group.com.mohammadshaw.questlock`. See `docs/decisions/001-app-name-and-bundle-ids.md`.
 
+> **Working mode changed 2026-10-22: build mode.** Mo asked Claude Code to build the app for him. The teach-back questions, "Mo writes" items and per-phase plan approvals below are skipped, and Claude merges each phase's PR. See `CLAUDE.md`.
+
 ---
 
 ## 0. How to use this file
