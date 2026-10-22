@@ -72,19 +72,24 @@ struct TodayView: View {
                 } label: {
                     LabeledContent("Apps to block", value: model.selectionSummary)
                 }
-                Toggle(isOn: Binding(get: { model.weeklyEnabled }, set: { model.setWeeklyEnabled($0) })) {
-                    VStack(alignment: .leading) {
-                        Text("Weekly schedule")
-                        Text("Mon–Fri check in by 10:00, Sat–Sun by 12:00. Apps lock 2 h before.")
-                            .font(.footnote).foregroundStyle(.secondary)
-                    }
-                }
+                LabeledContent("Today", value: todaySummary)
             }
         }
     }
 
+    /// "Locks 08:00–10:00", "Rest day" or "No schedule yet".
+    private var todaySummary: String {
+        let schedule = LockEngine.scheduleInForce(now: .now)
+        guard !schedule.days.isEmpty else { return model.pendingSchedule == nil ? "No schedule yet" : "Schedule starts tomorrow" }
+        guard model.weeklyEnabled else { return "Schedule paused" }
+        guard let day = schedule.days[Weekday(of: .now, calendar: .current)],
+              let start = try? ScheduleMath.lockStart(deadline: day.deadline, leadMinutes: day.leadMinutes) else { return "Rest day" }
+        return "Locks \(start.formatted)–\(day.deadline.formatted)"
+    }
+
     private var testingSection: some View {
         Section {
+            Toggle("Use my schedule on this phone", isOn: Binding(get: { model.weeklyEnabled }, set: { model.setWeeklyEnabled($0) }))
             Button("Lock in 1 minute for 15 minutes") { model.startDebugLock() }
             if let debug = model.debugLock {
                 LabeledContent("Test lock", value: "\(debug.start.formatted(date: .omitted, time: .shortened))–\(debug.end.formatted(date: .omitted, time: .shortened))")
