@@ -1,8 +1,56 @@
 # Progress
 
+## Phase 1 — Screen Time lock spike
+
+**Status:** built, 15/15 unit tests pass, installed on iPhone Sh · waiting for Mo's device test · branch `phase-1-screen-time`
+
+### What was built
+
+- **Shared (app + all 3 extensions):**
+  - `ScheduleModels.swift` (`TimeOfDay`, `Weekday`, `DaySchedule`, `WeeklySchedule`).
+  - `ScheduleMath.swift`: `lockStart(deadline:leadMinutes:)` rejects leads under 15 min or over 6 h, and windows crossing midnight. `lockWindow(on:…)` / `isInsideLockWindow(now:…)` treat the window as start-inclusive, end-exclusive.
+  - `SharedStore.swift`: typed App Group storage.
+  - `LockEngine.swift`: the single lock rule, used by both the Monitor and reconcile (ADR 003).
+- **Monitor extension:** `intervalDidStart` applies shields from the stored selection to the named store `questlock`; `intervalDidEnd` clears them.
+- **ShieldConfig:** custom shield "Locked until you check in / Today's quest: find a bench" with a **Check in** button.
+- **ShieldAction:** **Check in** closes the blocked app and posts a "Tap to check in" notification that opens QuestLock.
+- **Today tab:** Screen Time permission, app picker (`FamilyActivityPicker`), a weekly schedule toggle, a 1-min/15-min test lock, a tomorrow-only test, Unlock now, and a lock log. The log shows what the Monitor and reconcile did, with times.
+- **Reconcile on launch:** every time the app comes to the foreground it recomputes "should I be locked?" and fixes the shields.
+
+### Deviations from the plan
+
+1. **Weekly schedule is off until you switch it on.** Otherwise picking apps would start real daily locks (Mon–Fri 08:00–10:00, Sat–Sun 10:00–12:00) straight away.
+2. **"Unlock now" unlocks until the end of the current window** (`unlockedUntil`), so reconcile doesn't re-lock immediately. Phase 3's verified check-in reuses this.
+3. **The Monitor ignores a weekly callback that fires on the wrong weekday**, as a safety net. It logs "fired on …, ignored" if that ever happens.
+4. **A lock log on the Today tab**, so missed or unexpected callbacks can be seen on the phone.
+5. All Phase 1 code was written by Claude (build mode; no "Mo writes" items).
+
+### Open issues
+
+- Not yet confirmed on the phone: that weekly `DateComponents(weekday:)` schedules fire only on their weekday. The tomorrow-only test checks this.
+- The shield's notification is posted fire-and-forget. If it doesn't show up on the phone, it needs another approach.
+- Overlapping test locks are only handled roughly (debug-only).
+
+### Manual test steps (iPhone Sh, cable not needed)
+
+1. Open **QuestLock** → **Today** → **Allow Screen Time access** → **Continue**. Approve with Face ID or your passcode if asked. When it asks about notifications, tap **Allow**.
+2. **Apps to block** → search for **Instagram** (or any app you use) → tick it → **Done**. The row shows "1 app".
+3. Tap **Lock in 1 minute for 15 minutes**. "Test lock" shows a start and end time.
+4. Before the start time, **force-quit QuestLock**: swipe up from the bottom, hold, then swipe QuestLock away.
+5. After the start time, open **Instagram**. Expected: the QuestLock shield, saying "Locked until you check in / Today's quest: find a bench".
+6. Tap **Check in**. Expected: Instagram closes and a **"Tap to check in"** notification appears. Tap it and QuestLock opens.
+7. Today shows **Apps locked, until HH:MM**. The lock log shows "Start debug-lock: apps locked".
+8. Tap **Unlock now** → open Instagram. Expected: it opens normally.
+9. Tap **Lock in 1 minute for 15 minutes** again and **don't** unlock. After the end time, Instagram opens normally and the log shows "End debug-lock: apps unlocked".
+10. **Tomorrow-only test:** set **Tomorrow-only test at** to a time later today, e.g. one hour from now, then tap **Lock tomorrow at that time**. Today at that time, Instagram should **not** lock. Tomorrow at that time it **should**, and the log should show "Start test-weekday-N: apps locked" with tomorrow's date.
+
+Report back: which steps worked, and a screenshot of anything that didn't (the lock log helps).
+
+---
+
 ## Phase 0 — Repo, skeleton, and the slow external requests
 
-**Status:** built, CI green on PR 1, device test passed on 2026-10-22 · merged · branch `phase-0-skeleton`
+**Status:** done · device test passed on 2026-10-22 · merged in PR 1 · branch `phase-0-skeleton`
 
 ### What was built
 
