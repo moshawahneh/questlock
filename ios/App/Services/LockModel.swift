@@ -12,6 +12,8 @@ final class LockModel {
     private(set) var authorization: AuthorizationStatus = AuthorizationCenter.shared.authorizationStatus
     private(set) var selection = SharedStore.selection
     private(set) var weeklyEnabled = SharedStore.weeklyEnabled
+    private(set) var schedule = SharedStore.weeklySchedule
+    private(set) var pendingSchedule = SharedStore.pendingSchedule
     private(set) var isLocked = false
     private(set) var lockedUntil: Date?
     private(set) var debugLock = SharedStore.debugLock
@@ -27,6 +29,10 @@ final class LockModel {
         case .notDetermined, .denied: false
         default: true // .approvedWithDataAccess (iOS 26.4+) is also an approval
         }
+    }
+
+    var hasSelection: Bool {
+        !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty || !selection.webDomainTokens.isEmpty
     }
 
     var selectionSummary: String {
@@ -61,26 +67,89 @@ final class LockModel {
 
     // MARK: - Schedules
 
+    /// Pause or resume enforcing the weekly schedule on this phone (Testing section).
     func setWeeklyEnabled(_ enabled: Bool) {
         SharedStore.weeklyEnabled = enabled
-        center.stopMonitoring(LockActivity.allWeekly)
-        if enabled {
-            do {
-                for (weekday, day) in SharedStore.weeklySchedule.days {
-                    let (start, end) = try ScheduleMath.weeklyIntervalComponents(for: day, on: weekday)
-                    try center.startMonitoring(LockActivity.weekly(weekday).name,
-                                               during: DeviceActivitySchedule(intervalStart: start, intervalEnd: end, repeats: true))
-                }
-                SharedStore.log("Weekly schedule on")
-            } catch {
-                center.stopMonitoring(LockActivity.allWeekly)
-                SharedStore.weeklyEnabled = false
-                errorMessage = "Couldn't start the weekly schedule: \(error.localizedDescription)"
-            }
-        } else {
-            SharedStore.log("Weekly schedule off")
-        }
+        SharedStore.log(enabled ? "Weekly schedule on" : "Weekly schedule paused")
+        registerWeeklySchedules()
         reconcile()
+    }
+
+    /// Stores the schedule from the server (current + pending) and re-registers it with iOS.
+    func applySchedule(current: WeeklySchedule, pending: PendingSchedule?) {
+        let changed = current != SharedStore.weeklySchedule || pending != SharedStore.pendingSchedule
+        SharedStore.weeklySchedule = current
+        SharedStore.pendingSchedule = pending
+        if !current.days.isEmpty || pending.map({ !$0.schedule.days.isEmpty }) == true, !SharedStore.weeklyEnabled, changed {
+            SharedStore.weeklyEnabled = true
+        }
+        if changed {
+            SharedStore.log("Schedule updated" + (pending.map { " (changes start \($0.effectiveFrom))" } ?? ""))
+        }
+        registerWeeklySchedules()
+        reconcile()
+    }
+
+    /// Registers one repeating DeviceActivity per lock weekday, using the rule for that weekday's next
+    /// window, plus a repeating "Apps locked" notification at each lock start.
+    func registerWeeklySchedules(now: Date = .now) {
+        promotePendingScheduleIfDue(now: now)
+        center.stopMonitoring(LockActivity.allWeekly)
+        let notifications = UNUserNotificationCenter.current()
+        notifications.removePendingNotificationRequests(withIdentifiers: Weekday.allCases.map { "lock-start-\($0.rawValue)" })
+        guard SharedStore.weeklyEnabled else { return }
+
+        let calendar = Calendar.current
+        var failures: [String] = []
+        for weekday in Weekday.allCases {
+            guard let day = ScheduleMath.nextDaySchedule(for: weekday, now: now, current: SharedStore.weeklySchedule,
+                                                          pending: SharedStore.pendingSchedule, calendar: calendar) else { continue }
+            do {
+                let (start, end) = try ScheduleMath.weeklyIntervalComponents(for: day, on: weekday)
+                try center.startMonitoring(LockActivity.weekly(weekday).name,
+                                           during: DeviceActivitySchedule(intervalStart: start, intervalEnd: end, repeats: true))
+                notifications.add(Self.lockStartNotification(weekday: weekday, start: start, deadline: day.deadline))
+            } catch {
+                failures.append("\(weekday.shortName): \(error.localizedDescription)")
+            }
+        }
+        if !failures.isEmpty {
+            errorMessage = "Couldn't register the schedule for \(failures.joined(separator: ", "))"
+        }
+    }
+
+    /// Once a pending schedule's start date arrives it becomes the current one.
+    private func promotePendingScheduleIfDue(now: Date) {
+        guard let pending = SharedStore.pendingSchedule,
+              ScheduleMath.localDate(now, calendar: .current) >= pending.effectiveFrom else { return }
+        SharedStore.weeklySchedule = pending.schedule
+        SharedStore.pendingSchedule = nil
+        SharedStore.log("New schedule in force from \(pending.effectiveFrom)")
+    }
+
+    private static func lockStartNotification(weekday: Weekday, start: DateComponents, deadline: TimeOfDay) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = "Apps locked"
+        content.body = "Check in by \(deadline.formatted) to unlock. Today's quest: \(SharedStore.todayTarget)."
+        content.sound = .default
+        let trigger = UNCalendarNotificationTrigger(dateMatching: start, repeats: true)
+        return UNNotificationRequest(identifier: "lock-start-\(weekday.rawValue)", content: content, trigger: trigger)
+    }
+
+    /// Signing out: stop every lock and forget this phone's schedule and app choice.
+    func resetForSignOut() {
+        center.stopMonitoring()
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        LockEngine.clearShields()
+        SharedStore.weeklySchedule = WeeklySchedule(days: [:])
+        SharedStore.pendingSchedule = nil
+        SharedStore.weeklyEnabled = false
+        SharedStore.testSchedule = WeeklySchedule(days: [:])
+        SharedStore.debugLock = nil
+        SharedStore.unlockedUntil = nil
+        SharedStore.selection = FamilyActivitySelection()
+        SharedStore.log("Signed out: locks removed")
+        refresh()
     }
 
     /// One-off lock starting at the next whole minute + 1 (so 1–2 minutes from now), lasting 15 minutes,
@@ -152,6 +221,10 @@ final class LockModel {
     /// missed a callback, then refreshes what the UI shows.
     func reconcile() {
         authorization = AuthorizationCenter.shared.authorizationStatus
+        if let pending = SharedStore.pendingSchedule,
+           ScheduleMath.localDate(.now, calendar: .current) >= pending.effectiveFrom {
+            registerWeeklySchedules() // promotes it and re-registers with the new times
+        }
         if isAuthorized {
             LockEngine.reconcile()
         }
@@ -162,6 +235,8 @@ final class LockModel {
         authorization = AuthorizationCenter.shared.authorizationStatus
         selection = SharedStore.selection
         weeklyEnabled = SharedStore.weeklyEnabled
+        schedule = SharedStore.weeklySchedule
+        pendingSchedule = SharedStore.pendingSchedule
         debugLock = SharedStore.debugLock
         testSchedule = SharedStore.testSchedule
         lockedUntil = LockEngine.lockedUntil(now: now)
