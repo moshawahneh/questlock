@@ -7,6 +7,7 @@ enum SharedStore {
     private enum Key {
         static let selection = "selection"
         static let weeklySchedule = "weeklySchedule"
+        static let pendingSchedule = "pendingSchedule"
         static let weeklyEnabled = "weeklyEnabled"
         static let testSchedule = "testSchedule"
         static let debugLock = "debugLock"
@@ -22,12 +23,20 @@ enum SharedStore {
         set { write(newValue, Key.selection) }
     }
 
+    /// The schedule in force now (a copy of the server's; see `ScheduleModel`). Empty until one is saved.
     static var weeklySchedule: WeeklySchedule {
-        get { read(Key.weeklySchedule) ?? .phase1Default }
+        get { read(Key.weeklySchedule) ?? WeeklySchedule(days: [:]) }
         set { write(newValue, Key.weeklySchedule) }
     }
 
-    /// Off until the user turns it on, so picking apps doesn't immediately start daily locks.
+    /// A saved edit that starts on a later date (edits apply from tomorrow).
+    static var pendingSchedule: PendingSchedule? {
+        get { read(Key.pendingSchedule) }
+        set { write(newValue, Key.pendingSchedule) }
+    }
+
+    /// Whether this phone enforces the weekly schedule. On once a schedule is saved; the Testing
+    /// section can pause it.
     static var weeklyEnabled: Bool {
         get { read(Key.weeklyEnabled) ?? false }
         set { write(newValue, Key.weeklyEnabled) }
