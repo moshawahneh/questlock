@@ -156,9 +156,7 @@ struct CaptureView: View {
             message = "Posted, but after the deadline: it counts as late. Your friends can still see it."
             try? await Task.sleep(for: .seconds(2))
             dismiss()
-        case .noFace:
-            message = "We couldn't see your face in the front photo. Retake it. This didn't use an attempt."
-        case .failed(let text):
+        case .retake(let text), .rejected(let text), .failed(let text):
             message = text
         }
     }

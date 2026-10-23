@@ -1,6 +1,5 @@
 import CoreGraphics
 import UIKit
-import Vision
 
 /// 64-bit difference hash ("dHash"). Unlike SHA-256, similar-looking photos get similar hashes,
 /// so the server can catch the same photo being reused (small Hamming distance) even after re-encoding.
@@ -81,20 +80,5 @@ enum PhotoEncoding {
 
     static func jpeg(_ image: UIImage, quality: CGFloat = 0.7) -> Data? {
         image.jpegData(compressionQuality: quality)
-    }
-}
-
-enum FaceCheck {
-    /// True if Vision finds at least one face. Runs on-device, so a photo with no face is never uploaded.
-    /// Synchronous and slow-ish: call it off the main thread.
-    static func containsFace(_ image: CGImage) -> Bool {
-        let request = VNDetectFaceRectanglesRequest()
-        let handler = VNImageRequestHandler(cgImage: image, orientation: .up)
-        do {
-            try handler.perform([request])
-        } catch {
-            return false
-        }
-        return !(request.results ?? []).isEmpty
     }
 }
