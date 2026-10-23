@@ -86,7 +86,12 @@ final class LockModel {
         if changed {
             SharedStore.log("Schedule updated" + (pending.map { " (changes start \($0.effectiveFrom))" } ?? ""))
         }
-        registerWeeklySchedules()
+        // Re-registering stops and restarts any running lock window, so only do it when something
+        // changed (or nothing is registered yet), not on every trip to the foreground.
+        let registered = !Set(center.activities).isDisjoint(with: LockActivity.allWeekly)
+        if changed || (SharedStore.weeklyEnabled && !registered) {
+            registerWeeklySchedules()
+        }
         reconcile()
     }
 
