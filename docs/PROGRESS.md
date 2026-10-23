@@ -1,5 +1,44 @@
 # Progress
 
+## Phase 3 — Dual-camera capture and upload (stub verification)
+
+**Status:** built and tested; migration and functions live (2026-10-23); installed on iPhone Sh · waiting for the first real check-in (Sat 24 Oct, 09:00–12:00) · branch `phase-3-camera`
+
+### What was built
+
+- **Database** (`…_phase3_checkins.sql`): a private `checkins` photo bucket (JPEG only, 2 MB max). Each user can upload only into `{their id}/…` and can't update or delete photos. `challenge_window(user, date)` gives the lock window as real timestamps in the user's time zone (tested across the 25 Oct clock change). `ensure_challenge(…)` creates today's challenge once. Both are service-role only.
+- **Edge Functions** (Deno):
+  - `issue-challenge` returns today's challenge (a random allowlist target, avoiding the last 7 days), or `null` on a rest day.
+  - `verify-checkin` (stub, no AI) checks that the challenge is yours, the time window (too early → refused, after the deadline → `late`), the 5-attempt limit, and that both photos exist at the expected paths. It then records the check-in and the day's result.
+  - The rules live in `_shared/checkin_rules.ts`, with 8 Deno tests.
+- **iOS:**
+  - `CameraController` takes both photos at once with `AVCaptureMultiCamSession`; older phones take back then front.
+  - BeReal-style capture screen. Camera only, with no photo library anywhere.
+  - Before uploading: an on-device face check (Vision), resizing to ≤1024 px with JPEG quality 0.7, and a 64-bit dHash of the back photo.
+  - Upload, then verify. A verified check-in unlocks until the deadline (`unlockedUntil`), which the Monitor respects.
+  - Today tab: today's quest, "opens at", **Check in now**, checked in, late.
+- Tests: 26 iOS unit tests (including the dHash), 43 pgTAP tests, 8 Deno tests, and 12 end-to-end checks against the local stack.
+
+### Deviations from the plan
+
+1. **The server writes the `checkins` row**, not the app. The app uploads the photos and calls `verify-checkin`, which counts attempts and inserts the row, so a client can't fake attempt numbers.
+2. **dHash averages the 9×8 cells itself.** CoreGraphics' high-quality downscale corrupts the last 4 pixels of the bottom row when drawing straight into a tiny bitmap (found by a unit test and confirmed on the Mac).
+3. Failed uploads and "no face" don't use one of the 5 attempts (the plan's Phase 6 behaviour, done early).
+
+### Open issues
+
+- Not yet tried on the phone: the capture screen, upload and unlock. The next lock window is Sat 24 Oct 09:00–12:00.
+- The sequential-camera fallback is untested on a real device (both of Mo's phones support multi-cam).
+
+### Manual test steps (tomorrow, 09:00–12:00)
+
+1. After 09:00 Instagram should be locked (Phase 2 schedule). Open **QuestLock → Today**. It shows **Find …** and **Check in now**.
+2. Tap **Check in now** → allow camera access → the back camera fills the screen with your face in the corner. Find the target and press the shutter.
+3. **Post check-in.** Expected: the screen closes, Today shows **Checked in at …**, and Instagram opens normally.
+4. Optional checks: cover the front camera and post (expect "We couldn't see your face", with no attempt used); try the shield's **Check in** button.
+
+---
+
 ## Phase 2 — Supabase foundation: auth, groups, schedules
 
 **Status:** built and tested locally · waiting for Mo's Supabase project, then the two-phone test · branch `phase-2-supabase`
