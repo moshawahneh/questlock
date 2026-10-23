@@ -1,0 +1,6 @@
+[
+  { "photo": "bench-1.heic", "target": "bench", "expect": "accept", "note": "real bench, daylight" },
+  { "photo": "bench-on-laptop.heic", "target": "bench", "expect": "looks_like_screen", "note": "bench photo shown on a laptop" },
+  { "photo": "fan.heic", "target": "water_bottle", "expect": "target_not_seen", "note": "wrong object" },
+  { "photo": "selfie-back.heic", "front": "no-face-front.heic", "target": "tree", "expect": "no_face", "note": "front camera covered" }
+]
