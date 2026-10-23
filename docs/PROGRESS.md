@@ -41,7 +41,9 @@
 
 ## Phase 2 — Supabase foundation: auth, groups, schedules
 
-**Status:** built and tested locally · waiting for Mo's Supabase project, then the two-phone test · branch `phase-2-supabase`
+**Status:** done · merged in PR 3 (2026-10-23) · branch `phase-2-supabase`
+
+**Checked live (2026-10-23):** migrations pushed (with Mo's OK) and the live schema lints clean. Sign in with Apple works on iPhone Sh after the Apple provider was switched on in the dashboard. Two-phone test: iPhone Sh created a group, and the iPhone 11 Pro Max (a second Apple ID, registered in the developer account) signed in and joined with the code. The live database shows 2 profiles, 1 group, 2 members and 2 saved schedules. The schedule saved on iPhone Sh came back from the server as "pending from 2026-10-24".
 
 ### What was built
 
@@ -65,7 +67,6 @@
 
 ### Open issues
 
-- Not yet run against the live Supabase project or on two phones (needs the steps below).
 - Pushing the migration to the live project needs Mo's OK (standing rule).
 
 ### Mo does
