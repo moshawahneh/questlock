@@ -72,10 +72,22 @@ enum LockEngine {
         ScheduleMath.schedule(on: now, current: SharedStore.weeklySchedule, pending: SharedStore.pendingSchedule, calendar: calendar)
     }
 
-    static func shouldBeLocked(now: Date, excluding excluded: LockActivity? = nil) -> Bool {
+    static func shouldBeLocked(now: Date) -> Bool {
         if let until = SharedStore.unlockedUntil, now < until { return false }
         guard hasSelection else { return false }
-        return activeWindows(now: now).contains { $0.activity != excluded }
+        return !activeWindows(now: now).isEmpty
+    }
+
+    /// How close to a window's end an `intervalDidEnd` must arrive to count as the real end.
+    static let endTolerance: TimeInterval = 60
+
+    /// Pure rule for `intervalDidEnd`: keep the shields up if a lock window still has more than a minute
+    /// to run. iOS also calls `intervalDidEnd` when the app re-registers a schedule (`stopMonitoring`)
+    /// in the middle of a window; that must not unlock the apps.
+    static func keepLockedAfterEnd(now: Date, windows: [Window], unlockedUntil: Date?, hasSelection: Bool) -> Bool {
+        if let unlockedUntil, now < unlockedUntil { return false }
+        guard hasSelection else { return false }
+        return windows.contains { $0.interval.end.timeIntervalSince(now) > endTolerance }
     }
 
     /// When the current lock ends, if locked.
@@ -129,10 +141,14 @@ enum LockEngine {
     }
 
     static func intervalDidEnd(_ name: DeviceActivityName, now: Date = .now) {
-        let activity = LockActivity(name)
-        if case .debug = activity { SharedStore.debugLock = nil }
-        if shouldBeLocked(now: now, excluding: activity) {
-            SharedStore.log("End \(name.rawValue): another lock still running, shields stay", at: now)
+        // Forget a test lock only once it has really finished (not when it was just re-registered).
+        if case .debug = LockActivity(name), let debug = SharedStore.debugLock,
+           debug.end.timeIntervalSince(now) <= endTolerance {
+            SharedStore.debugLock = nil
+        }
+        if keepLockedAfterEnd(now: now, windows: activeWindows(now: now),
+                              unlockedUntil: SharedStore.unlockedUntil, hasSelection: hasSelection) {
+            SharedStore.log("End \(name.rawValue): a lock is still running, shields stay", at: now)
             return
         }
         clearShields()

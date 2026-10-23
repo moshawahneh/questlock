@@ -73,12 +73,15 @@ targets:
         # Filled in from Config/Debug.xcconfig; read by App/Services/Backend.swift.
         SupabaseURL: $(SUPABASE_URL)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        NSCameraUsageDescription: QuestLock takes one photo with each camera when you check in, to show you found today's target. There's no photo library access.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mohammadshaw.questlock
+        # Icon source: design/make-app-icon.swift renders App/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   # Started by iOS at the start/end of each scheduled lock window; applies and clears shields.
   Monitor:

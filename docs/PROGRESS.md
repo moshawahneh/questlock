@@ -1,8 +1,55 @@
 # Progress
 
+## Phase 3 — Dual-camera capture and upload (stub verification)
+
+**Status:** done · first real check-ins on the iPhone 11 Pro Max (2026-10-23) · branch `phase-3-camera`
+
+### Checked on device (iPhone 11 Pro Max, second account, one-off test lock 23:06–23:40 on 23 Oct)
+
+- 23:06:01 the Monitor locked the chosen app on time. 23:06:49 a check-in with a **water bottle** was verified on the live server: both photos stored, phash saved, `daily_results` = verified, and the app unlocked.
+- After a reset, a photo of a **fan** was also verified. Expected for the stub: what's in the photo isn't checked until Phase 4. Mo also pointed out that a target shown on another screen would pass. Phase 4's `looks_like_screen_or_printed_photo` observation, the decision rule and the screen-photo eval cases cover this.
+- The front-camera face check works: a photo with no face was refused on the phone, without using an attempt.
+- **Bug found in the lock log and fixed:** the app re-registered the weekly schedule every time it came to the foreground. iOS ends a running interval on `stopMonitoring`, so the shields dropped for a moment each time ("End … unlocked → Start … locked" 3× in 30 s). Now the app only re-registers on a real change, and `intervalDidEnd` keeps the shields while a window has more than a minute left (4 new unit tests from the real timeline).
+
+### What was built
+
+- **Database** (`…_phase3_checkins.sql`): a private `checkins` photo bucket (JPEG only, 2 MB max). Each user can upload only into `{their id}/…` and can't update or delete photos. `challenge_window(user, date)` gives the lock window as real timestamps in the user's time zone (tested across the 25 Oct clock change). `ensure_challenge(…)` creates today's challenge once. Both are service-role only.
+- **Edge Functions** (Deno):
+  - `issue-challenge` returns today's challenge (a random allowlist target, avoiding the last 7 days), or `null` on a rest day.
+  - `verify-checkin` (stub, no AI) checks that the challenge is yours, the time window (too early → refused, after the deadline → `late`), the 5-attempt limit, and that both photos exist at the expected paths. It then records the check-in and the day's result.
+  - The rules live in `_shared/checkin_rules.ts`, with 8 Deno tests.
+- **iOS:**
+  - `CameraController` takes both photos at once with `AVCaptureMultiCamSession`; older phones take back then front.
+  - BeReal-style capture screen. Camera only, with no photo library anywhere.
+  - Before uploading: an on-device face check (Vision), resizing to ≤1024 px with JPEG quality 0.7, and a 64-bit dHash of the back photo.
+  - Upload, then verify. A verified check-in unlocks until the deadline (`unlockedUntil`), which the Monitor respects.
+  - Today tab: today's quest, "opens at", **Check in now**, checked in, late.
+- Tests: 26 iOS unit tests (including the dHash), 43 pgTAP tests, 8 Deno tests, and 12 end-to-end checks against the local stack.
+
+### Deviations from the plan
+
+1. **The server writes the `checkins` row**, not the app. The app uploads the photos and calls `verify-checkin`, which counts attempts and inserts the row, so a client can't fake attempt numbers.
+2. **dHash averages the 9×8 cells itself.** CoreGraphics' high-quality downscale corrupts the last 4 pixels of the bottom row when drawing straight into a tiny bitmap (found by a unit test and confirmed on the Mac).
+3. Failed uploads and "no face" don't use one of the 5 attempts (the plan's Phase 6 behaviour, done early).
+
+### Open issues
+
+- The sequential-camera fallback is untested on a real device (both of Mo's phones support multi-cam).
+
+### Manual test steps (tomorrow, 09:00–12:00)
+
+1. After 09:00 Instagram should be locked (Phase 2 schedule). Open **QuestLock → Today**. It shows **Find …** and **Check in now**.
+2. Tap **Check in now** → allow camera access → the back camera fills the screen with your face in the corner. Find the target and press the shutter.
+3. **Post check-in.** Expected: the screen closes, Today shows **Checked in at …**, and Instagram opens normally.
+4. Optional checks: cover the front camera and post (expect "We couldn't see your face", with no attempt used); try the shield's **Check in** button.
+
+---
+
 ## Phase 2 — Supabase foundation: auth, groups, schedules
 
-**Status:** built and tested locally · waiting for Mo's Supabase project, then the two-phone test · branch `phase-2-supabase`
+**Status:** done · merged in PR 3 (2026-10-23) · branch `phase-2-supabase`
+
+**Checked live (2026-10-23):** migrations pushed (with Mo's OK) and the live schema lints clean. Sign in with Apple works on iPhone Sh after the Apple provider was switched on in the dashboard. Two-phone test: iPhone Sh created a group, and the iPhone 11 Pro Max (a second Apple ID, registered in the developer account) signed in and joined with the code. The live database shows 2 profiles, 1 group, 2 members and 2 saved schedules. The schedule saved on iPhone Sh came back from the server as "pending from 2026-10-24".
 
 ### What was built
 
@@ -26,7 +73,6 @@
 
 ### Open issues
 
-- Not yet run against the live Supabase project or on two phones (needs the steps below).
 - Pushing the migration to the live project needs Mo's OK (standing rule).
 
 ### Mo does
