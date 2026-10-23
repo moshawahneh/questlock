@@ -2,15 +2,15 @@
 
 export const MAX_ATTEMPTS = 5;
 
-export type StubDecision =
+export type TimingDecision =
   | { ok: true; status: "verified" | "late" }
   | { ok: false; code: "too_early" | "too_many_attempts"; message: string; httpStatus: number };
 
 /**
- * Phase 3 stub decision (no AI yet): inside the lock window → verified, after the deadline → late,
- * before the window opens or after 5 attempts → rejected.
+ * Time window and attempt limit, checked before looking at the photos: before the window opens or
+ * after 5 attempts → refused; inside the window → would be verified; after the deadline → late.
  */
-export function decideStub(input: { now: Date; opensAt: Date; deadlineAt: Date; attemptsSoFar: number }): StubDecision {
+export function checkTiming(input: { now: Date; opensAt: Date; deadlineAt: Date; attemptsSoFar: number }): TimingDecision {
   if (input.now < input.opensAt) {
     return {
       ok: false,
