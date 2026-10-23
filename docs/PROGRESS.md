@@ -2,7 +2,14 @@
 
 ## Phase 3 — Dual-camera capture and upload (stub verification)
 
-**Status:** built and tested; migration and functions live (2026-10-23); installed on iPhone Sh · waiting for the first real check-in (Sat 24 Oct, 09:00–12:00) · branch `phase-3-camera`
+**Status:** done · first real check-ins on the iPhone 11 Pro Max (2026-10-23) · branch `phase-3-camera`
+
+### Checked on device (iPhone 11 Pro Max, second account, one-off test lock 23:06–23:40 on 23 Oct)
+
+- 23:06:01 the Monitor locked the chosen app on time. 23:06:49 a check-in with a **water bottle** was verified on the live server: both photos stored, phash saved, `daily_results` = verified, and the app unlocked.
+- After a reset, a photo of a **fan** was also verified. Expected for the stub: what's in the photo isn't checked until Phase 4. Mo also pointed out that a target shown on another screen would pass. Phase 4's `looks_like_screen_or_printed_photo` observation, the decision rule and the screen-photo eval cases cover this.
+- The front-camera face check works: a photo with no face was refused on the phone, without using an attempt.
+- **Bug found in the lock log and fixed:** the app re-registered the weekly schedule every time it came to the foreground. iOS ends a running interval on `stopMonitoring`, so the shields dropped for a moment each time ("End … unlocked → Start … locked" 3× in 30 s). Now the app only re-registers on a real change, and `intervalDidEnd` keeps the shields while a window has more than a minute left (4 new unit tests from the real timeline).
 
 ### What was built
 
@@ -27,7 +34,6 @@
 
 ### Open issues
 
-- Not yet tried on the phone: the capture screen, upload and unlock. The next lock window is Sat 24 Oct 09:00–12:00.
 - The sequential-camera fallback is untested on a real device (both of Mo's phones support multi-cam).
 
 ### Manual test steps (tomorrow, 09:00–12:00)
