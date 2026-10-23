@@ -73,6 +73,7 @@ targets:
         # Filled in from Config/Debug.xcconfig; read by App/Services/Backend.swift.
         SupabaseURL: $(SUPABASE_URL)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        NSCameraUsageDescription: QuestLock takes one photo with each camera when you check in, to show you found today's target. There's no photo library access.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

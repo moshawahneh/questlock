@@ -3,12 +3,15 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(LockModel.self) private var model
+    @Environment(CheckInModel.self) private var checkIn
     @State private var showingPicker = false
+    @State private var capturing = false
     @State private var testTime = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: .now) ?? .now
 
     var body: some View {
         NavigationStack {
             List {
+                if Backend.isConfigured { questSection }
                 statusSection
                 setupSection
                 if model.isAuthorized {
@@ -17,7 +20,19 @@ struct TodayView: View {
                 }
             }
             .navigationTitle("Today")
-            .refreshable { model.reconcile() }
+            .refreshable {
+                model.reconcile()
+                await checkIn.load()
+            }
+            .task {
+                if Backend.isConfigured { await checkIn.load() }
+                // Keep "opens at / open / deadline passed" current while the tab is on screen.
+                while !Task.isCancelled {
+                    checkIn.updateStatus()
+                    try? await Task.sleep(for: .seconds(20))
+                }
+            }
+            .fullScreenCover(isPresented: $capturing) { CaptureView() }
             .familyActivityPicker(
                 headerText: "Choose the apps QuestLock locks until you check in.",
                 isPresented: $showingPicker,
@@ -49,8 +64,57 @@ struct TodayView: View {
                 }
             }
             .padding(.vertical, 4)
-            LabeledContent("Today's quest", value: SharedStore.todayTarget)
         }
+    }
+
+    private var questSection: some View {
+        Section("Today's quest") {
+            switch checkIn.status {
+            case .loading:
+                ProgressView()
+            case .restDay:
+                Label("Rest day: no quest today", systemImage: "cup.and.saucer")
+            case .notOpenYet(let opens):
+                questRow
+                Text("Check-in opens at \(opens.formatted(date: .omitted, time: .shortened)), when your apps lock.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            case .open(let deadline):
+                questRow
+                Button {
+                    capturing = true
+                } label: {
+                    Label("Check in now", systemImage: "camera.fill").frame(maxWidth: .infinity).bold()
+                }
+                .buttonStyle(.borderedProminent).tint(.indigo).controlSize(.large)
+                .listRowBackground(Color.clear)
+                Text("Post before \(deadline.formatted(date: .omitted, time: .shortened)) to unlock your apps and keep your streak.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            case .verified:
+                Label {
+                    Text("Checked in" + (checkIn.verifiedAt.map { " at \($0.formatted(date: .omitted, time: .shortened))" } ?? ""))
+                } icon: {
+                    Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                }
+                .font(.headline)
+            case .late:
+                Label("Posted late today", systemImage: "clock.badge.exclamationmark")
+            case .pastDeadline:
+                questRow
+                Text("The deadline has passed. You can still post: it counts as late and doesn't keep your streak.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Button("Post late") { capturing = true }
+            }
+        }
+    }
+
+    private var questRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Find \(checkIn.challenge?.target_label ?? "today's target")").font(.title3.bold())
+            if let hint = checkIn.challenge?.hint {
+                Text(hint).font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     private var setupSection: some View {

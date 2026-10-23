@@ -33,4 +33,5 @@ struct ComingSoonView: View {
         .environment(ScheduleModel(locks: locks))
         .environment(SessionModel())
         .environment(GroupsModel())
+        .environment(CheckInModel(locks: locks))
 }
