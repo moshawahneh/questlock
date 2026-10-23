@@ -80,6 +80,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mohammadshaw.questlock
+        # Icon source: design/make-app-icon.swift renders App/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   # Started by iOS at the start/end of each scheduled lock window; applies and clears shields.
   Monitor:
