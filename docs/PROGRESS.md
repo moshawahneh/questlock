@@ -1,8 +1,41 @@
 # Progress
 
+## Phase 4 — Photo checks (Apple's on-device classifier instead of Claude)
+
+**Status:** built, tested, functions deployed (v2) and installed on both phones (2026-10-24) · waiting for a real check-in and the tuning photos · branch `phase-4-photo-check`
+
+### What was built
+
+- **Decision: Apple Vision instead of Claude** (ADR 004). Mo chose not to set up an Anthropic API key, so the plan's Claude call is replaced by Apple's built-in image classifier (`VNClassifyImageRequest`, 1,303 labels). It's free, runs on the phone, and needs no key.
+- **Phone** (`PhotoChecks.swift`): face check on the front photo, then target and screen checks on the back photo. Each target maps to classifier labels (e.g. `tree` → tree, oak_tree…; `post_box` → mailbox). Screen-like labels are screenshot, computer_monitor, television, laptop, computer and phone. A failing photo is caught **before uploading** and doesn't use an attempt ("That doesn't look like a bench", "That looks like a photo of a screen").
+- **Server** (`_shared/decision.ts`, the copy that counts): accept only if there's a face, target confidence ≥ 0.3, screen confidence < 0.3, and the photo isn't a reuse of one of the user's last 30 (perceptual hash, ≤ 6 bits different). Rejections are recorded with a reason and use an attempt. `ai_result` stores what the phone saw.
+- **Targets** limited to what the classifier recognises: tree, bench, street sign, post box, bicycle, lamp post, statue/monument, front door, shop front, traffic light, fence, plant.
+- **Tuning tool** `tools/eval-photos/run.sh` compiles the app's own `PhotoChecks.swift` on the Mac and scores a folder of labelled photos (confusion matrix plus threshold hints). How to take the photos: `eval/README.md`.
+- Tests: 36 iOS (new: rule, thresholds, labels per target), 17 Deno (new: rule, hashing, a sync test that fails if the phone's and server's targets or thresholds differ), 7 end-to-end checks on the local stack (fan, screen, reused photo, good photo).
+
+### Deviations from the plan
+
+1. **No Claude:** no AI target choice (still random from the allowlist), and the photo verdict is based on on-device observations, which a modified app could fake (see ADR 004 for what the server still enforces itself).
+2. Bus stop dropped; park gate → fence; plant pot → plant; building entrance → "a front door".
+
+### Open issues
+
+- **Thresholds are provisional** (0.3 / 0.3). Mo needs to take ~20 tuning photos (eval/README.md) and run the tool. Goal: 0 screen photos let through, ≥ 80% correct.
+- Not yet checked on the phone with the new rule. iPhone Sh's Saturday lock (09:00–12:00) is the first chance.
+- `water_bottle` stays as a test-only label mapping (used on 23 Oct); it isn't in the random allowlist.
+
+### Manual test steps
+
+1. iPhone Sh, Sat 24 Oct after 09:00: Instagram locks. **QuestLock → Today → Check in now**, then photograph the target. Expect "Checked in".
+2. Wrong object (e.g. point it at your shoes): expect "That doesn't look like …" before uploading, with no attempt used.
+3. The target shown on a laptop/TV/another phone: expect "That looks like a photo of a screen" (or, if it slips through, note it for tuning).
+4. Tuning set: `eval/README.md`.
+
+---
+
 ## Phase 3 — Dual-camera capture and upload (stub verification)
 
-**Status:** done · first real check-ins on the iPhone 11 Pro Max (2026-10-23) · branch `phase-3-camera`
+**Status:** done · merged in PR 4 (2026-10-23) · branch `phase-3-camera`
 
 ### Checked on device (iPhone 11 Pro Max, second account, one-off test lock 23:06–23:40 on 23 Oct)
 
