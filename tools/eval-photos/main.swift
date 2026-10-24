@@ -8,9 +8,15 @@ import ImageIO
 struct Case: Decodable {
     let photo: String          // back photo, in eval/photos/
     let front: String?         // optional front photo; without one, a face is assumed
-    let target: String         // target key, e.g. "bench"
+    let target: String         // target key, e.g. "bench"; "any" skips the target check (screen tests)
     let expect: String         // accept | target_not_seen | looks_like_screen | no_face
     let note: String?
+}
+
+/// The photo at full resolution (for the screen pixel-pattern check, which needs every pixel).
+func loadFull(_ url: URL) -> CGImage? {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+    return CGImageSourceCreateImageAtIndex(source, 0, nil)
 }
 
 /// Loads a photo upright and at most 1024 px on the long side, like the app does before checking.
@@ -33,21 +39,27 @@ guard let data = try? Data(contentsOf: casesURL),
 }
 
 var rows: [(Case, PhotoObservations, CheckInDecision.Verdict)] = []
+var patterns: [String: ScreenPattern.Scores] = [:]
 for item in cases {
     let backURL = root.appendingPathComponent("photos").appendingPathComponent(item.photo)
     guard let back = load(backURL) else { print("⚠️  can't open \(item.photo)"); continue }
     let front = item.front.flatMap { load(root.appendingPathComponent("photos").appendingPathComponent($0)) }
     var observations = PhotoClassifier.observe(front: front ?? back, back: back, targetKey: item.target)
     if front == nil { observations.front_has_face = true }
+    if item.target == "any" { observations.target_confidence = 1; observations.target_label = "(any)" }
+    patterns[item.photo] = loadFull(backURL).map(ScreenPattern.scores) ?? .zero
     rows.append((item, observations, CheckInDecision.verdict(observations)))
 }
 
 func pad(_ s: String, _ n: Int) -> String { s.count >= n ? String(s.prefix(n)) : s + String(repeating: " ", count: n - s.count) }
-print(pad("", 2) + pad("photo", 26) + pad("target", 20) + pad("expected", 18) + pad("got", 18) + pad("target", 8) + pad("screen", 8) + "top labels")
+print(pad("", 2) + pad("photo", 26) + pad("target", 20) + pad("expected", 18) + pad("got", 18) + pad("target", 8) + pad("screen", 8)
+      + pad("pattern", 9) + pad("chroma", 8) + "top labels")
 for (item, o, verdict) in rows {
     let ok = verdict.rawValue == item.expect
+    let pattern = patterns[item.photo] ?? .zero
     print((ok ? "✓ " : "✗ ") + pad(item.photo, 26) + pad(item.target, 20) + pad(item.expect, 18) + pad(verdict.rawValue, 18)
           + pad(String(format: "%.2f", o.target_confidence), 8) + pad(String(format: "%.2f", o.screen_confidence), 8)
+          + pad(String(format: "%.2f", pattern.peak), 9) + pad(String(format: "%.3f", pattern.chroma), 8)
           + o.top_labels.joined(separator: " "))
 }
 
@@ -79,3 +91,17 @@ if let lo = realTarget.min() { print("Lowest target confidence on a real target:
 if let hi = wrongObject.max() { print("Highest target confidence on a wrong object: \(String(format: "%.2f", hi))") }
 if let lo = screens.min() { print("Lowest screen confidence on a screen photo:  \(String(format: "%.2f", lo))  (threshold \(CheckInDecision.maxScreenConfidence))") }
 if let hi = realScreen.max() { print("Highest screen confidence on a real photo:   \(String(format: "%.2f", hi))") }
+
+// Screen pixel-pattern scores (not used by the verdict yet): do screens and real photos separate?
+let screenCases = rows.filter { $0.0.expect == "looks_like_screen" }.map { patterns[$0.0.photo] ?? .zero }
+let realCases = rows.filter { $0.0.expect != "looks_like_screen" }.map { patterns[$0.0.photo] ?? .zero }
+func range(_ values: [Double]) -> String {
+    guard let lo = values.min(), let hi = values.max() else { return "—" }
+    return String(format: "%.2f – %.2f", lo, hi)
+}
+print("""
+
+    Pixel pattern ("pattern"): screens \(range(screenCases.map(\.peak)))   real \(range(realCases.map(\.peak)))
+    Colour fringes ("chroma"): screens \(range(screenCases.map(\.chroma)))   real \(range(realCases.map(\.chroma)))
+    A score separates them if the lowest screen value is above the highest real value.
+    """)

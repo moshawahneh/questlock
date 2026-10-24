@@ -15,6 +15,18 @@ Use the normal iPhone Camera app (back camera) and AirDrop them to the Mac into 
 | 4 | A photo of the target **on a screen**: a laptop, a TV, another phone; close-up too | the target | `looks_like_screen` |
 | 2 | Very dark or very blurry shot of the target | the target | whatever you think is fair |
 
+## Screen close-ups (pixel-pattern check)
+
+The classifier can't tell a real object from the same object on a screen that fills the frame
+(23 Oct: "bottle 0.43, screen 0.00"). The pixel-pattern check looks for the screen's pixel grid
+instead. Use `"target": "any"` for these photos so only the screen checks count.
+
+| How many | What | `expect` |
+|---|---|---|
+| 10 | A photo of an object **shown on a screen**, close enough that the screen fills the frame: 3 on a laptop, 3 on another phone, 2 on a TV/monitor, 2 extra close | `looks_like_screen` |
+| 5 | **Real** objects close up: water bottle, mug, plant, shoes, fan | `accept` |
+| 5 | **Real but regular textures** (the likeliest false alarms): window blinds, a keyboard, striped fabric, a fence or radiator, a brick wall | `accept` |
+
 ## Run
 
 ```bash
