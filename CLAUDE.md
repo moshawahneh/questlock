@@ -31,6 +31,10 @@ xcrun devicectl device process launch --device <UDID> com.mohammadshaw.questlock
 supabase start      # local stack
 supabase db lint    # same as CI
 supabase test db    # pgTAP tests (from Phase 2)
+# Edge Function logic tests (--allow-read: one test reads the iOS PhotoChecks.swift to keep both copies in sync)
+cd supabase/functions && deno test --allow-read _shared/
+# Photo check tuning: score labelled photos in eval/photos with the app's own checks (eval/README.md)
+tools/eval-photos/run.sh
 ```
 
 ## Standing rules

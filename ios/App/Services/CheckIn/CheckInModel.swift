@@ -33,7 +33,10 @@ final class CheckInModel {
     enum Outcome: Equatable {
         case verified
         case late
-        case noFace
+        /// Caught on the phone before uploading: no attempt used.
+        case retake(String)
+        /// The server said no: this used one of the 5 attempts.
+        case rejected(String)
         case failed(String)
     }
 
@@ -93,23 +96,34 @@ final class CheckInModel {
 
     // MARK: - Submit
 
-    /// Runs the whole check-in. A missing face is caught on the phone and doesn't use an attempt.
+    /// Runs the whole check-in. Problems Apple's on-device checks can see (no face, target not seen,
+    /// photo of a screen) are caught before uploading and don't use an attempt.
     func submit(_ photos: CameraController.Photos, userID: UUID) async -> Outcome {
         guard let client = Backend.client, let challenge else { return .failed("No check-in is open right now.") }
 
         // 1. On-device checks and encoding, off the main thread.
+        let targetKey = challenge.target_key
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared? in
             let front = PhotoEncoding.downscaled(photos.front)
             let back = PhotoEncoding.downscaled(photos.back)
-            guard let frontImage = front.cgImage, FaceCheck.containsFace(frontImage) else { return nil }
-            guard let backImage = back.cgImage, let hash = PerceptualHash.dHash(backImage),
-                  let frontData = PhotoEncoding.jpeg(front), let backData = PhotoEncoding.jpeg(back) else {
-                return Prepared(front: Data(), back: Data(), phash: "")
-            }
-            return Prepared(front: frontData, back: backData, phash: PerceptualHash.hex(hash))
+            guard let frontImage = front.cgImage, let backImage = back.cgImage,
+                  let hash = PerceptualHash.dHash(backImage),
+                  let frontData = PhotoEncoding.jpeg(front), let backData = PhotoEncoding.jpeg(back) else { return nil }
+            let observations = PhotoClassifier.observe(front: frontImage, back: backImage, targetKey: targetKey)
+            return Prepared(front: frontData, back: backData, phash: PerceptualHash.hex(hash), observations: observations)
         }.value
-        guard let prepared else { return .noFace }
-        guard !prepared.phash.isEmpty else { return .failed("Couldn't process the photos. Try again.") }
+        guard let prepared else { return .failed("Couldn't process the photos. Try again.") }
+
+        switch CheckInDecision.verdict(prepared.observations) {
+        case .accept:
+            break
+        case .noFace:
+            return .retake("We couldn't see your face in the front photo. Retake it. This didn't use an attempt.")
+        case .targetNotSeen:
+            return .retake("That doesn't look like \(challenge.target_label). Get closer or try another angle. This didn't use an attempt.")
+        case .looksLikeScreen:
+            return .retake("That looks like a photo of a screen. Photograph the real thing. This didn't use an attempt.")
+        }
 
         // 2. Upload both photos into the user's own folder (ids lowercased to match auth.uid()::text).
         let checkinID = UUID().uuidString.lowercased()
@@ -124,21 +138,27 @@ final class CheckInModel {
             return .failed("Upload failed: \(Self.message(for: error)) Your attempt wasn't used, so try again.")
         }
 
-        // 3. Ask the server to verify (Phase 3: stub, no AI).
+        // 3. The server applies the same rule, plus checks it can do itself (time, attempts, reused photos).
         do {
             let result: VerifyResponse = try await client.functions.invoke(
                 "verify-checkin",
                 options: FunctionInvokeOptions(method: .post, body: VerifyRequest(
                     challenge_id: challenge.id.uuidString.lowercased(), checkin_id: checkinID,
-                    front_path: paths.front, back_path: paths.back, phash: prepared.phash)))
-            verifiedAt = .now
-            if result.unlocked {
+                    front_path: paths.front, back_path: paths.back, phash: prepared.phash,
+                    observations: prepared.observations)))
+            switch result.status {
+            case "verified":
+                verifiedAt = .now
                 unlock(until: ISODate.parse(result.deadline_at) ?? challenge.deadlineAt)
                 status = .verified
                 return .verified
+            case "late":
+                verifiedAt = .now
+                status = .late
+                return .late
+            default:
+                return .rejected(result.message ?? "The check-in wasn't accepted. Try again.")
             }
-            status = result.status == "late" ? .late : status
-            return result.status == "late" ? .late : .failed("The check-in wasn't accepted. Try again.")
         } catch {
             return .failed(Self.message(for: error))
         }
@@ -157,6 +177,7 @@ final class CheckInModel {
         let front: Data
         let back: Data
         let phash: String
+        let observations: PhotoObservations
     }
 
     private struct ChallengeResponse: Decodable { let challenge: Challenge? }
@@ -167,9 +188,11 @@ final class CheckInModel {
         let front_path: String
         let back_path: String
         let phash: String
+        let observations: PhotoObservations
     }
     private struct VerifyResponse: Decodable {
-        let status: String
+        let status: String          // verified | late | rejected
+        let message: String?
         let unlocked: Bool
         let deadline_at: String
     }

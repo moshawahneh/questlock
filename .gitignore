@@ -31,3 +31,6 @@ supabase/.branches/
 
 # Eval photos for verify-checkin (real faces, never committed)
 supabase/functions/verify-checkin/eval/photos/
+
+# Photo check tuning set (real photos of people and places)
+eval/photos/

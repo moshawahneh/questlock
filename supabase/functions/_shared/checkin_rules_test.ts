@@ -1,30 +1,30 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { decideStub, expectedPhotoPaths, isUuid, MAX_ATTEMPTS, phashToBigint } from "./checkin_rules.ts";
+import { checkTiming, expectedPhotoPaths, isUuid, MAX_ATTEMPTS, phashToBigint } from "./checkin_rules.ts";
 import { pickRandomTarget, TARGETS } from "./targets.ts";
 
 const opensAt = new Date("2026-10-24T08:00:00Z");
 const deadlineAt = new Date("2026-10-24T11:00:00Z");
 
 Deno.test("before the lock opens → too_early", () => {
-  const d = decideStub({ now: new Date("2026-10-24T07:59:59Z"), opensAt, deadlineAt, attemptsSoFar: 0 });
+  const d = checkTiming({ now: new Date("2026-10-24T07:59:59Z"), opensAt, deadlineAt, attemptsSoFar: 0 });
   assertEquals(d.ok ? null : d.code, "too_early");
 });
 
 Deno.test("inside the window → verified (both edges)", () => {
   for (const now of [opensAt, new Date("2026-10-24T09:30:00Z"), deadlineAt]) {
-    assertEquals(decideStub({ now, opensAt, deadlineAt, attemptsSoFar: 0 }), { ok: true, status: "verified" });
+    assertEquals(checkTiming({ now, opensAt, deadlineAt, attemptsSoFar: 0 }), { ok: true, status: "verified" });
   }
 });
 
 Deno.test("after the deadline → late", () => {
-  const d = decideStub({ now: new Date("2026-10-24T11:00:01Z"), opensAt, deadlineAt, attemptsSoFar: 2 });
+  const d = checkTiming({ now: new Date("2026-10-24T11:00:01Z"), opensAt, deadlineAt, attemptsSoFar: 2 });
   assertEquals(d, { ok: true, status: "late" });
 });
 
 Deno.test("the 6th attempt is refused", () => {
   const now = new Date("2026-10-24T09:00:00Z");
-  assertEquals(decideStub({ now, opensAt, deadlineAt, attemptsSoFar: MAX_ATTEMPTS - 1 }).ok, true);
-  const d = decideStub({ now, opensAt, deadlineAt, attemptsSoFar: MAX_ATTEMPTS });
+  assertEquals(checkTiming({ now, opensAt, deadlineAt, attemptsSoFar: MAX_ATTEMPTS - 1 }).ok, true);
+  const d = checkTiming({ now, opensAt, deadlineAt, attemptsSoFar: MAX_ATTEMPTS });
   assertEquals(d.ok ? null : d.code, "too_many_attempts");
 });
 
