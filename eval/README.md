@@ -18,7 +18,7 @@ Use the normal iPhone Camera app (back camera) and AirDrop them to the Mac into 
 ## Screen close-ups (pixel-pattern check)
 
 The classifier can't tell a real object from the same object on a screen that fills the frame
-(23 Oct: "bottle 0.43, screen 0.00"). The pixel-pattern check looks for the screen's pixel grid
+(24 Oct: "bottle 0.43, screen 0.00"). The pixel-pattern check looks for the screen's pixel grid
 instead. Use `"target": "any"` for these photos so only the screen checks count.
 
 | How many | What | `expect` |
